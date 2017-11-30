@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Snake</title>
+	</head>
+	<body>
+		<canvas id="playArea" style="width:640px;height:480px"></canvas>
+		<script>
+			// Personal library
+
+			// Basic
+			class Vector2d
+			{
+				constructor(x, y, z=0)
+				{
+					this.x = x;
+					this.y = y;
+					this.z = z;
+				}
+			}
+
+			// Modules
+			class ColliderBox2d
+			{
+				constructor(parent, uniqueName)
+				{
+					this.name = uniqueName;
+					this.parent = parent;
+					this.x = parent.x;
+					this.y = parent.y;
+					this.width = parent.width;
+					this.height = parent.height;
+				}
+
+				updatePosition()
+				{
+					this.x = this.parent.x;
+					this.y = this.parent.y;
+					this.width = this.parent.width;
+					this.height = this.parent.height;
+				}
+
+				checkCollision(collider)
+				{
+					if(collider.x > this.x && collider.x < this.x + this.width
+						&& collider.y > this.y && collider.y < this.y + this.height)
+					{
+						return true;
+					}
+					if(collider.x + collider.width > this.x && collider.x + collider.width < this.x + this.width
+						&& collider.y > this.y && collider.y < this.y + this.height)
+					{
+						return true;
+					}
+					if(collider.x > this.x && collider.x < this.x + this.width
+						&& collider.y + collider.height > this.y && collider.y + collider.height < this.y + this.height)
+					{
+						return true;
+					}
+					if(collider.x + collider.width > this.x && collider.x + collider.width < this.x + this.width
+						&& collider.y + collider.height > this.y && collider.y + collider.height < this.y + this.height)
+					{
+						return true;
+					}	
+				}
+			}
+
+			// Objects
+			class Label
+			{
+				constructor(context, x, y, text, font="8px Arial", color="#000000", textAlign="center")
+				{
+					this.context = context;
+					this.x = x;
+					this.y = y;
+					this.text = text;
+					this.font = font;
+					this.color = color;
+					this.textAlign = textAlign;
+				}
+
+				draw(filled=true)
+				{
+					this.context.font = this.font;
+					this.context.fillStyle = this.color;
+					this.context.textAlign = this.textAlign;				
+					if(filled)
+					{
+						this.context.fillText(this.text, this.x, this.y);
+					}
+					else
+					{
+						this.context.strokeText(this.text, this.x, this.y);
+					}
+				}
+
+				setText(text)
+				{
+					this.text = text;
+				}
+
+				attachModule(module)
+				{
+					this.modules.push(module);
+				}
+
+				getModule(uniqueName)
+				{
+					for(var i = 0; i < this.modules.length; i++)
+					{
+						if(this.modules[i].name === uniqueName)
+						{
+							return this.modules[i];
+						}
+					}
+				}
+
+				move(vector)
+				{
+					this.x += vector.x;
+					this.y += vector.y;
+					this.z += vector.z;
+					for(var i = 0; i < this.modules.length; i++)
+					{
+						if(this.modules[i] instanceof ColliderBox2d)
+						{
+							this.modules[i].updatePosition();
+						}
+					}
+				}
+			}
+
+			class Rectangle 
+			{
+				constructor(context, x, y, width, height, color="#000000")
+				{
+					this.context = context;
+					this.x = x;
+					this.y = y;
+					this.width = width;
+					this.height = height;
+					this.color = color;
+					this.modules = [];
+				}
+
+				draw(filled=false)
+				{
+					this.context.fillStyle = this.color;
+					if(filled)
+					{
+						this.context.fillRect(this.x, this.y, this.width, this.height);
+					}
+					else
+					{
+
+						this.context.strokeRect(this.x, this.y, this.width, this.height);
+					}
+				}
+
+				attachModule(module)
+				{
+					this.modules.push(module);
+				}
+
+				getModule(uniqueName)
+				{
+					for(var i = 0; i < this.modules.length; i++)
+					{
+						if(this.modules[i].name === uniqueName)
+						{
+							return this.modules[i];
+						}
+					}
+				}
+
+				move(vector)
+				{
+					this.x += vector.x;
+					this.y += vector.y;
+					this.z += vector.z;
+					for(var i = 0; i < this.modules.length; i++)
+					{
+						if(this.modules[i] instanceof ColliderBox2d)
+						{
+							this.modules[i].updatePosition();
+						}
+					}
+				}
+			}
+
+			// Initialize
+			var canvas = document.getElementById("playArea");
+			var context = canvas.getContext("2d");
+
+			// Variables
+			var direction = 0;
+			//var bodyDirection = 0;
+			var points = 0;
+			var speed = 1;
+			//var turnPositions = [];
+			//var directionHistory = [];
+
+			// Create objects
+			var borderTop = new Rectangle(context, 0, 0, 300, 5);
+			borderTop.attachModule(new ColliderBox2d(borderTop, "Collider"));
+			var borderLeft = new Rectangle(context, 0, 0, 5, 150);
+			borderLeft.attachModule(new ColliderBox2d(borderLeft, "Collider"));
+			var borderRight = new Rectangle(context, 295, 0, 5, 150);
+			borderRight.attachModule(new ColliderBox2d(borderRight, "Collider"));
+			var borderBottom = new Rectangle(context, 0, 145, 300, 5);
+			borderBottom.attachModule(new ColliderBox2d(borderBottom, "Collider"));
+			var player = new Rectangle(context, 150, 75, 16, 16);
+			player.attachModule(new ColliderBox2d(player, "Collider"));
+			//var body = new Rectangle(context, 166, 75, 16, 16);
+			//body.attachModule(new ColliderBox2d(player, "Collider"));
+			var point = new Rectangle(context, 10 + Math.random() * 269, 10 + Math.random() * 119, 16, 16, "#ffee00");
+			point.attachModule(new ColliderBox2d(point, "Collider"));
+			var score = new Label(context, 290, 15, String(points) + " Points", "10px Arial", "#000000", textAlign="right");
+ 
+			// Create event listener
+
+			document.addEventListener('keypress', handleInput);
+
+			// main loop
+			window.setInterval(function(){
+				update();
+				draw();
+			}, 10);
+
+			function update()
+			{
+				switch(direction)
+				{
+					case 0:
+						player.move(new Vector2d(-0.5 - 0.1 * speed, 0));
+						break;
+					case 1:
+						player.move(new Vector2d(0, -0.5 - 0.1 * speed));
+						break;
+					case 2:
+						player.move(new Vector2d(0.5 + 0.1 * speed, 0));
+						break;
+					case 3:
+						player.move(new Vector2d(0, 0.5 + 0.1 * speed));
+						break;
+					default:
+						player.move(new Vector2d(0, 0.5 + 0.1 * speed));
+				}
+
+				/*switch(bodyDirection)
+				{
+					case 0:
+						body.move(new Vector2d(-0.5 - 0.1 * speed, 0));
+						break;
+					case 1:
+						body.move(new Vector2d(0, -0.5 - 0.1 * speed));
+						break;
+					case 2:
+						body.move(new Vector2d(0.5 + 0.1 * speed, 0));
+						break;
+					case 3:
+						body.move(new Vector2d(0, 0.5 + 0.1 * speed));
+						break;
+					default:
+						body.move(new Vector2d(0, 0.5 + 0.1 * speed));
+				}
+
+				for(var i = 0; i < turnPositions.length; i++)
+				{
+					if(Math.floor(body.x) == Math.floor(turnPositions[i].x) && Math.floor(body.y) == Math.floor(turnPositions[i].y))
+					{
+						bodyDirection = directionHistory.shift();
+						if(!bodyDirection)
+						{
+							bodyDirection = direction;
+						}
+					}
+				}*/
+				
+				if(player.getModule("Collider").checkCollision(point.getModule("Collider")))
+				{
+					points++;
+					speed++;
+					point.move(new Vector2d(-point.x, -point.y));
+					point.move(new Vector2d(10 + Math.random() * 269, 10 + Math.random() * 119));
+				}
+				if(borderTop.getModule("Collider").checkCollision(player.getModule("Collider"))
+					|| borderLeft.getModule("Collider").checkCollision(player.getModule("Collider"))
+					|| borderRight.getModule("Collider").checkCollision(player.getModule("Collider"))
+					|| borderBottom.getModule("Collider").checkCollision(player.getModule("Collider")))
+				{
+					alert('Game Over!\nScore: ' + String(points));
+					points = 0;
+					speed = 1;
+					player.move(new Vector2d(-player.x, -player.y));
+					player.move(new Vector2d(150, 75));
+					body.move(new Vector2d(-body.x, -body.y));
+					body.move(new Vector2d(166, 75));
+					direction = 0;
+					bodyDirection = 0;
+					turnPositions = [];
+					directionHistory = [];
+				}
+			}
+
+			function draw()
+			{
+				context.clearRect(0, 0, 300, 150);
+				borderTop.draw();
+				borderLeft.draw();
+				borderRight.draw();
+				borderBottom.draw();
+				point.draw(true);
+				player.draw(true);
+				body.draw(true);
+				score.setText(String(points) + " Points");
+				score.draw();
+			}
+
+			function handleInput(e)
+			{
+				//turnPositions.push(new Vector2d(player.x, player.y));
+				//directionHistory.push(direction);
+				switch(e.keyCode)
+				{
+					case 37:
+						direction = 0;
+						break;
+					case 38:
+						direction = 1;
+						break;
+					case 39:
+						direction = 2;
+						break;
+					case 40:
+						direction = 3;
+						break;
+					default:
+						break;
+				}
+			}
+		</script>
+	</body>
+</html>
